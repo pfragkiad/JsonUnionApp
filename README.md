@@ -57,7 +57,7 @@ string contentScenario1 = """
 ## Example 2 - Examine if a property of JSON node exists
 
 For the same variable `contentScenario1`, we can get an `IDictionary`, which allows examination of the existence of a specific property.
-By ensuring that a property exists, we can assume that the correct JSON format is returned, because the parse is completed.
+By ensuring that a property exists, we can assume that the correct JSON format is returned, because the parse is completed. The returned dictionary is case insensitive.
 
 ```cs
 //Case 2
@@ -79,10 +79,11 @@ In the following example, we assume that there are 2 possible return types. The 
 
 More specifically this instance is of type: `OneOf.OneOf<ResponseOk?, ResponseOk2?, Error?>?`
 The `Error` type is a simpe record type that encapsulates a single error message in case for parse exceptions only.
-Note that the `content` argument and at least one of `propertyIndentifierForFirstType` or `propertyIdentifierForSecondType` must be non empty or else the call is meaningless.
+If the `content` argument is null/empty/whitespace then `null` is returned.
+The `propertyIdentifierForFirstType` argument is the property identifier of the first candidate type (in this case of type `ResponseOk`). It is assumed that this property is not also contained in the `ResponseOk2`.
+The `propertyIdentifierForSecondType` correspondingly is the property identifier of the second type. Both the identifiers are treated as case insensitive.
+The `propertyIdentifierForFirstType` and `propertyIdentifierForSecondType` must be non empty or else the call is meaningless. An `ArgumentException` is thrown if either of the two arguments are empty.
 
-The `propertyIndentifierForFirstType` arguments is the property identifier of the first candidate type (in this case of type `ResponseOk`). It is assumed that this property is not also contained in the `ResponseOk2`.
-Alternatively we can pass the `propertyIdentifierForSecondType` argument instead.
 
 ```cs
 public class ResponseOk
@@ -116,27 +117,14 @@ JsonSerializerOptions o = new() { PropertyNameCaseInsensitive = true };
 
 var response1 = JsonUnionSerializer.Deserialize<ResponseOk, ResponseOk2>(
     content: contentScenario1,
-    propertyIndentifierForFirstType: "prop1",
+    propertyIdentifierForFirstType: "prop1",
+    propertyIdentifierForSecondType: "message",
     throwExceptionForBadFormat: false,
     options: o);
 
-if (response1.HasValue)
-{
-    var r = response1.Value;
-    r.Switch(
-        ok => Console.WriteLine($"{ok!.Prop1}, {ok!.Prop2}"),
-        ok2 => Console.WriteLine($"{ok2!.Message}, {ok2.Code}"),
-        error => Console.WriteLine($"{error!.Message}")
-        );
-}
-//will print (for contentScenario1):
-//10, n1
-
-//will print (for contentScenario2):
-//Alternative stuff, 100
 
 
-//OR: here is alternative way of handling the response
+//example of handling the response
 if (response1.HasValue)
 {
     var r = response1.Value;
@@ -157,5 +145,33 @@ if (response1.HasValue)
     }
 }
 
-
+//will print (for contentScenario1):
+//10, n1
 ```
+
+We can do things more compactly using either the `Switch` or the `Match` methods, as shown below:
+```cs
+//Switch example
+if (response1.HasValue)
+{
+    var r = response1.Value;
+    r.Switch(
+        ok => Console.WriteLine($"{ok!.Prop1}, {ok!.Prop2}"),
+        ok2 => Console.WriteLine($"{ok2!.Message}, {ok2.Code}"),
+        error => Console.WriteLine($"{error!.Message}")
+        );
+}
+
+//Match example
+if (response1.HasValue)
+{
+    var r = response1.Value;
+    int intResult = r.Match(
+        ok => ok!.Prop1,
+        ok2 => ok2!.Code,
+        error => -1
+        );
+}
+```
+
+If you want to see more things about the `OneOf` library, you are strongly encourages to check [here](https://www.nuget.org/packages/OneOf).

@@ -9,7 +9,7 @@ public static class JsonUnionSerializer
 {
     public static IDictionary<string, JsonNode?>? ToDictionary(this JsonNode node)
     {
-        return node as IDictionary<string, JsonNode?>;
+        return (node as IDictionary<string, JsonNode?>)?.ToDictionary(e=>e.Key,e=>e.Value,StringComparer.OrdinalIgnoreCase);
     }
 
 
@@ -21,9 +21,12 @@ public static class JsonUnionSerializer
         return d.Keys.Cast<string>().ToHashSet();
     }
 
-    public static OneOf<T?, Error?>? Deserialize<T>(string content, bool throwExceptionForBadFormat = true, JsonSerializerOptions? options = null)
+    public static OneOf<T?, Error?>? Deserialize<T>(
+        string? content,
+        bool throwExceptionForBadFormat = true,
+        JsonSerializerOptions? options = null)
     {
-        ArgumentException.ThrowIfNullOrEmpty(content, nameof(content));
+        if (string.IsNullOrWhiteSpace(content)) return null;
 
         try
         {
@@ -43,13 +46,24 @@ public static class JsonUnionSerializer
         }
     }
 
-    public static OneOf<TFirst?, TSecond?, Error?>? Deserialize<TFirst, TSecond>(string content, string? propertyIndentifierForFirstType, string? propertyIdentifierForSecondType = null, bool throwExceptionForBadFormat = true, JsonSerializerOptions? options = null)
+    public static OneOf<TFirst?, TSecond?, Error?>? Deserialize<TFirst, TSecond>(
+        string? content,
+        string? propertyIdentifierForFirstType,
+        string? propertyIdentifierForSecondType,
+        bool throwExceptionForBadFormat = true,
+        JsonSerializerOptions? options = null)
     {
-        ArgumentException.ThrowIfNullOrEmpty(content, nameof(content));
-        if (string.IsNullOrWhiteSpace(propertyIndentifierForFirstType) && string.IsNullOrWhiteSpace(propertyIdentifierForSecondType))
-            ArgumentException.ThrowIfNullOrEmpty(content, $"{nameof(propertyIndentifierForFirstType)}|{nameof(propertyIdentifierForSecondType)}");
+        if (string.IsNullOrWhiteSpace(content)) return null;
 
-        //if we arrive here at least one of the propertyIndentifierForFirstType, propertyIdentifierForSecondType are not null
+        if (string.IsNullOrWhiteSpace(propertyIdentifierForFirstType))
+            throw new ArgumentException(content, $"{nameof(propertyIdentifierForFirstType)}");
+
+
+        if (string.IsNullOrWhiteSpace(propertyIdentifierForSecondType))
+            throw new ArgumentException(content, $"{nameof(propertyIdentifierForSecondType)}");
+
+
+        //if we arrive here at least one of the propertyIdentifierForFirstType, propertyIdentifierForSecondType are not null
 
         try
         {
@@ -57,14 +71,16 @@ public static class JsonUnionSerializer
             JsonNode? json = JsonNode.Parse(content);
             if (json is null) return null;
 
-            var d = json.ToDictionary();
+            var d = json.ToDictionary()?.ToDictionary(e=>e.Key,e=>e.Value,StringComparer.InvariantCultureIgnoreCase);
             if (d is null) return null;
 
-            if (propertyIndentifierForFirstType is not null && d.ContainsKey(propertyIndentifierForFirstType))
+            if (d.ContainsKey(propertyIdentifierForFirstType))
                 return json.Deserialize<TFirst>(options);
 
-            //propertyIdentifierForSecondType is not null
-            return json.Deserialize<TSecond>(options);
+            if (d.ContainsKey(propertyIdentifierForSecondType))
+                return json.Deserialize<TSecond>(options);
+
+            else return new Error(Message: $"Could not parsed JSON text. Value: '{content}'");
 
         }
         catch (JsonException e)

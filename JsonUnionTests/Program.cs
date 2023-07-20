@@ -42,7 +42,8 @@ internal class Program
 
         OneOf.OneOf<ResponseOk?, ResponseOk2?, Error?>? response1 = JsonUnionSerializer.Deserialize<ResponseOk, ResponseOk2>(
             contentScenario1,
-            propertyIndentifierForFirstType: "prop1",
+            propertyIdentifierForFirstType: "Prop1",
+            propertyIdentifierForSecondType: "Message",
             throwExceptionForBadFormat: false,
             options: o);
 
@@ -76,6 +77,16 @@ internal class Program
                 ok => Console.WriteLine($"{ok!.Prop1}, {ok!.Prop2}"),
                 ok2 => Console.WriteLine($"{ok2!.Message}, {ok2.Code}"),
                 error => Console.WriteLine($"{error!.Message}")
+                );
+        }
+
+        if (response1.HasValue)
+        {
+            var r = response1.Value;
+            int intResult = r.Match(
+                ok => ok!.Prop1,
+                ok2 => ok2!.Code,
+                error => -1
                 );
         }
         //will print:
