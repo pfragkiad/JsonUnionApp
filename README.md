@@ -174,4 +174,4 @@ if (response1.HasValue)
 }
 ```
 
-If you want to see more things about the `OneOf` library, you are strongly encourages to check [here](https://www.nuget.org/packages/OneOf).
+If you want to see more things about the `OneOf` library, you are strongly encouraged to check [here](https://www.nuget.org/packages/OneOf).

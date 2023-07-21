@@ -23,6 +23,7 @@ public static class JsonUnionSerializer
 
     public static OneOf<T?, Error?>? Deserialize<T>(
         string? content,
+        string propertyIdentifier,
         bool throwExceptionForBadFormat = true,
         JsonSerializerOptions? options = null)
     {
@@ -34,10 +35,18 @@ public static class JsonUnionSerializer
             JsonNode? json = JsonNode.Parse(content);
             if (json is null) return null;
 
+            if (string.IsNullOrWhiteSpace(propertyIdentifier))
+                throw new ArgumentException(content, $"{nameof(propertyIdentifier)}");
+
+
             var d = json.ToDictionary();
             if (d is null) return null;
 
-            return json.Deserialize<T>(options);
+            if (d.ContainsKey(propertyIdentifier))
+                return json.Deserialize<T>(options);
+
+
+            return new Error(Message: $"Could not parse JSON text. Value: '{content}'");
         }
         catch (JsonException e)
         {
@@ -48,8 +57,8 @@ public static class JsonUnionSerializer
 
     public static OneOf<TFirst?, TSecond?, Error?>? Deserialize<TFirst, TSecond>(
         string? content,
-        string? propertyIdentifierForFirstType,
-        string? propertyIdentifierForSecondType,
+        string propertyIdentifierForFirstType,
+        string propertyIdentifierForSecondType,
         bool throwExceptionForBadFormat = true,
         JsonSerializerOptions? options = null)
     {
@@ -80,7 +89,7 @@ public static class JsonUnionSerializer
             if (d.ContainsKey(propertyIdentifierForSecondType))
                 return json.Deserialize<TSecond>(options);
 
-            else return new Error(Message: $"Could not parsed JSON text. Value: '{content}'");
+            else return new Error(Message: $"Could not parse JSON text. Value: '{content}'");
 
         }
         catch (JsonException e)
